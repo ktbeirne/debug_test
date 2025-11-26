@@ -1,0 +1,38 @@
+{
+  "name": "llm-ops-demo",
+  "version": "1.0.0",
+  "description": "CloudWatch + GitHub Actions + Claude Code によるエラー自動解析デモ",
+  "main": "dist/lambda/sample-app/index.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "npm run build && node dist/scripts/deploy-all.js",
+    "deploy:sample-app": "npm run build && node dist/scripts/deploy-sample-app.js",
+    "deploy:trigger": "npm run build && node dist/scripts/deploy-trigger.js",
+    "clean": "rm -rf dist",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "llm",
+    "claude",
+    "cloudwatch",
+    "github-actions",
+    "error-analysis",
+    "lambda",
+    "api-gateway"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@aws-sdk/client-lambda": "^3.670.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.670.0",
+    "@aws-sdk/client-iam": "^3.670.0",
+    "@aws-sdk/client-api-gateway": "^3.670.0",
+    "@octokit/rest": "^21.0.2",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.3",
+    "@types/aws-lambda": "^8.10.145",
+    "typescript": "^5.7.2"
+  }
+}
