@@ -2,7 +2,6 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda
 
 /**
  * ブログ記事管理API - サンプルアプリケーション
- * 意図的にバグを含んでおり、Claude Codeによるエラー解析のデモに使用
  */
 
 // データモデル
@@ -65,7 +64,7 @@ const articles: Article[] = [
         title: '削除された記事',
         content: 'この記事は削除されています',
         authorId: 10,
-        tags: null,  // バグ: tagsがnull
+        tags: null,
         isDeleted: true,
         createdAt: '2025-11-15T09:00:00Z',
         updatedAt: '2025-11-15T09:00:00Z',
@@ -75,7 +74,7 @@ const articles: Article[] = [
         id: 4,
         title: 'Node.js 22の新機能',
         content: 'Node.js 22で追加された新しい機能について解説します...',
-        authorId: 999,  // バグ: 存在しないユーザーID
+        authorId: 999,
         tags: ['nodejs', 'javascript'],
         isDeleted: false,
         createdAt: '2025-11-23T11:00:00Z',
@@ -164,7 +163,7 @@ const getArticles = (event: APIGatewayProxyEvent): APIGatewayProxyResult => {
     });
 };
 
-// 記事詳細取得（バグ: isDeletedチェック漏れ）
+// 記事詳細取得
 const getArticleById = (articleId: number): APIGatewayProxyResult => {
     const article = articles.find(a => a.id === articleId);
 
@@ -172,15 +171,7 @@ const getArticleById = (articleId: number): APIGatewayProxyResult => {
         return createErrorResponse(404, 'ART-001', '記事が見つかりません', { articleId });
     }
 
-    // バグ: isDeletedのチェックを忘れている！
-    // 本来はここで以下のチェックが必要：
-    // if (article.isDeleted) {
-    //     return createErrorResponse(410, 'ART-002', 'この記事は削除されています', { articleId, deletedAt: article.deletedAt });
-    // }
-
-    // バグ: tagsがnullの場合、mapでエラーが発生する
-    // @ts-ignore - 意図的なバグ（tagsがnullの可能性）
-    const tagNames = article.tags.map(t => t.toUpperCase());  // article.tags が null の場合エラー
+    const tagNames = article.tags!.map(t => t.toUpperCase());
 
     const author = users[article.authorId];
 
@@ -189,14 +180,14 @@ const getArticleById = (articleId: number): APIGatewayProxyResult => {
         title: article.title,
         content: article.content,
         authorId: article.authorId,
-        authorName: author?.name || 'Unknown',  // バグ: authorがundefinedの可能性
+        authorName: author?.name || 'Unknown',
         tags: tagNames,
         createdAt: article.createdAt,
         updatedAt: article.updatedAt,
     });
 };
 
-// 記事作成（バグ: 著者IDの存在チェック漏れ）
+// 記事作成
 const createArticle = (event: APIGatewayProxyEvent): APIGatewayProxyResult => {
     const body = JSON.parse(event.body || '{}');
     const { title, content, authorId, tags } = body;
@@ -211,12 +202,6 @@ const createArticle = (event: APIGatewayProxyEvent): APIGatewayProxyResult => {
             ].filter(Boolean),
         });
     }
-
-    // バグ: authorIdの存在チェックを忘れている！
-    // 本来はここで以下のチェックが必要：
-    // if (!users[authorId]) {
-    //     return createErrorResponse(404, 'USR-001', 'ユーザーが見つかりません', { userId: authorId });
-    // }
 
     const newArticle: Article = {
         id: articles.length + 1,
@@ -234,10 +219,10 @@ const createArticle = (event: APIGatewayProxyEvent): APIGatewayProxyResult => {
     return createSuccessResponse({ id: newArticle.id, message: '記事を作成しました' }, 201);
 };
 
-// 記事更新（バグ: 権限チェックの実装ミス）
+// 記事更新
 const updateArticle = (articleId: number, event: APIGatewayProxyEvent): APIGatewayProxyResult => {
     const body = JSON.parse(event.body || '{}');
-    const { title, content, tags, userId } = body;  // userIdはリクエストから取得（本来は認証トークンから）
+    const { title, content, tags, userId } = body;
 
     const article = articles.find(a => a.id === articleId);
 
@@ -249,15 +234,10 @@ const updateArticle = (articleId: number, event: APIGatewayProxyEvent): APIGatew
         return createErrorResponse(410, 'ART-002', 'この記事は削除されています', { articleId });
     }
 
-    // バグ: 権限チェックの条件が間違っている！
-    // 本来は article.authorId === userId をチェックすべきだが、常にtrueになっている
-    // @ts-ignore - 意図的なバグ（権限チェックの実装ミス）
-    if (article.authorId !== userId && false) {  // この条件は常にfalseなので権限チェックが機能しない
-        // @ts-ignore
+    if (article!.authorId !== userId && false) {
         return createErrorResponse(403, 'ART-004', 'この記事を編集する権限がありません', {
             articleId,
-            // @ts-ignore
-            articleAuthorId: article.authorId,
+            articleAuthorId: article!.authorId,
             requestUserId: userId,
         });
     }
@@ -271,7 +251,7 @@ const updateArticle = (articleId: number, event: APIGatewayProxyEvent): APIGatew
     return createSuccessResponse({ message: '記事を更新しました' });
 };
 
-// コメント投稿（バグ: 親記事の存在チェック漏れ）
+// コメント投稿
 const createComment = (articleId: number, event: APIGatewayProxyEvent): APIGatewayProxyResult => {
     const body = JSON.parse(event.body || '{}');
     const { userId, content } = body;
@@ -283,18 +263,6 @@ const createComment = (articleId: number, event: APIGatewayProxyEvent): APIGatew
             maxLength: 1000,
         });
     }
-
-    // バグ: 親記事の存在チェックを忘れている！
-    // 本来はここで以下のチェックが必要：
-    // const article = articles.find(a => a.id === articleId);
-    // if (!article || article.isDeleted) {
-    //     return createErrorResponse(404, 'CMT-001', 'コメント先の記事が見つかりません', { articleId });
-    // }
-
-    // バグ: ユーザーの存在チェックも忘れている
-    // if (!users[userId]) {
-    //     return createErrorResponse(404, 'USR-001', 'ユーザーが見つかりません', { userId });
-    // }
 
     const newComment: Comment = {
         id: comments.length + 1,
@@ -366,10 +334,10 @@ export const handler = async (
                 timestamp: new Date().toISOString(),
                 endpoints: [
                     'GET /articles - 記事一覧',
-                    'GET /articles/:id - 記事詳細（バグ: 削除済み記事チェック漏れ）',
-                    'POST /articles - 記事作成（バグ: 著者ID存在チェック漏れ）',
-                    'PUT /articles/:id - 記事更新（バグ: 権限チェック実装ミス）',
-                    'POST /articles/:id/comments - コメント投稿（バグ: 親記事チェック漏れ）',
+                    'GET /articles/:id - 記事詳細',
+                    'POST /articles - 記事作成',
+                    'PUT /articles/:id - 記事更新',
+                    'POST /articles/:id/comments - コメント投稿',
                 ],
             });
         }
