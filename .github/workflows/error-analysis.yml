@@ -49,7 +49,7 @@ jobs:
 
             const issueBody = `## エラー検知通知
 
-            本番環境でエラーが検知されました。Claude Codeによる自動解析を実施します。
+            本番環境でエラーが検知されました。
 
             ### エラー情報
 
@@ -65,20 +65,7 @@ jobs:
 
             \`\`\`
             ${errorStack}
-            \`\`\`
-
-            ---
-
-            ### 解析依頼
-
-            @claude 上記のエラーについて、以下の観点で解析してください:
-
-            1. **根本原因**: このエラーが発生した根本的な原因
-            2. **影響範囲**: このエラーが影響する機能や範囲
-            3. **修正方法**: 具体的なコード変更の提案
-            4. **再発防止**: 同様のエラーを防ぐための対策
-
-            リポジトリのコードを確認して、詳細な解析レポートをお願いします。`;
+            \`\`\``;
 
             const issue = await github.rest.issues.create({
               owner: context.repo.owner,
@@ -89,3 +76,20 @@ jobs:
             });
 
             console.log(`Issue created: ${issue.data.html_url}`);
+
+            // Claude for GitHubを呼び出すためのコメントを追加
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.data.number,
+              body: `@claude 上記のエラーについて、以下の観点で解析してください:
+
+            1. **根本原因**: このエラーが発生した根本的な原因
+            2. **影響範囲**: このエラーが影響する機能や範囲
+            3. **修正方法**: 具体的なコード変更の提案
+            4. **再発防止**: 同様のエラーを防ぐための対策
+
+            リポジトリのコードを確認して、詳細な解析レポートをお願いします。`
+            });
+
+            console.log('Claude analysis comment added');
