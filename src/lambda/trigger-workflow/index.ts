@@ -29,6 +29,7 @@ interface GitHubDispatchPayload {
     log_group: string;
     log_stream: string;
     context: string;
+    [key: string]: unknown;
 }
 
 export const handler = async (

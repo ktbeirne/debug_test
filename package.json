@@ -23,16 +23,18 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.670.0",
+    "@aws-sdk/client-api-gateway": "^3.670.0",
     "@aws-sdk/client-cloudwatch-logs": "^3.670.0",
     "@aws-sdk/client-iam": "^3.670.0",
-    "@aws-sdk/client-api-gateway": "^3.670.0",
+    "@aws-sdk/client-lambda": "^3.670.0",
     "@octokit/rest": "^21.0.2",
     "dotenv": "^16.4.5"
   },
   "devDependencies": {
-    "@types/node": "^22.9.3",
+    "@types/adm-zip": "^0.5.7",
     "@types/aws-lambda": "^8.10.145",
+    "@types/node": "^22.9.3",
+    "adm-zip": "^0.5.16",
     "typescript": "^5.7.2"
   }
 }
