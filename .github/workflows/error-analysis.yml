@@ -38,7 +38,7 @@ jobs:
       - name: Create Issue with error details
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.PAT_TOKEN }}
           script: |
             const errorStack = `${{ github.event.client_payload.error_stack }}`;
             const errorMessage = `${{ github.event.client_payload.error_message }}`;
