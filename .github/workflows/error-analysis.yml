@@ -35,10 +35,18 @@ jobs:
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 
+          allowed_tools: |
+            Bash(gh *),
+            Bash(gh issue *),
+            Read,
+            Glob,
+            Grep,
+            TodoWrite
+
           prompt: |
             # エラー自動解析タスク
 
-            本番環境でエラーが検知されました。以下の情報を元に、適切に対処してください。
+            本番環境でエラーが検知されました。以下の情報を元に、コード解析とIssue作成を行ってください。
 
             ## エラー情報
 
@@ -56,31 +64,69 @@ jobs:
             ## あなたのタスク
 
             1. **既存Issueの重複チェック**
-               - 現在オープンしているIssueを確認し、同じエラーや根本原因が同じIssueが既に存在しないかチェック
-               - 存在する場合は、そのIssueにコメントを追加して終了
+               - `gh issue list --state open --json number,title,body --limit 50` で現在オープンしているIssueを確認
+               - 同じエラーや根本原因が同じIssueが既に存在しないかチェック
+               - 存在する場合は、そのIssueに状況を追記するコメントを追加して終了
                - 存在しない場合は、次のステップへ
 
             2. **コード解析**
-               - リポジトリのコードを確認し、エラーの根本原因を特定
-               - `src/lambda/sample-app/index.ts` を中心に調査
+               - リポジトリのコード（特に `src/lambda/sample-app/index.ts`）を確認
+               - スタックトレースからエラーの根本原因を特定
+               - 問題のあるコード箇所を特定（ファイル名:行番号）
 
             3. **Issue作成**（重複がない場合のみ）
                - 以下の形式で分かりやすいタイトルを付けてIssueを作成：
-                 例: 「削除済み記事取得時のnullポインタエラー」
-                 例: 「JSONパース失敗時のエラーハンドリング不足」
+                 - 良い例: 「削除済み記事取得時のnullポインタエラー (GET /articles/:id)」
+                 - 良い例: 「JSONパース失敗時のエラーハンドリング不足 (POST /articles)」
+                 - 悪い例: 「エラーが発生しました」「TypeError」
+               - Issue名には発生場所（エンドポイントや関数名）を含める
                - ラベル: `bug`, `auto-detected`, `needs-fix`
 
-            4. **解析レポート作成**
-               - Issue本文に以下の内容を含める：
-                 - **概要**: エラーの簡潔な説明
-                 - **根本原因**: コードのどの部分に問題があるか（ファイル名:行番号）
-                 - **影響範囲**: このエラーが影響する機能やユーザー
-                 - **修正方法**: 具体的なコード変更の提案
-                 - **再発防止**: 同様のエラーを防ぐための対策
-                 - **検知情報**: 上記のエラー情報とスタックトレース
+            3. **解析レポート作成**
+
+               Issue本文に以下のセクションを含めてください：
+
+               ### 🔴 エラー概要
+               （エラーの簡潔な説明を1-2文で）
+
+               ### 🔍 根本原因
+               - **問題箇所**: `ファイル名:行番号`
+               - **原因**: （なぜこのエラーが発生したか）
+               - **コードの問題**: （該当するコードスニペット）
+
+               ### 📊 影響範囲
+               - **影響を受ける機能**:
+               - **影響を受けるユーザー**:
+               - **深刻度**: （Critical/High/Medium/Low）
+
+               ### 🛠️ 修正方法
+               （具体的なコード変更の提案をコードブロックで）
+
+               ### 🚀 再発防止策
+               - （同様のエラーを防ぐための対策）
+
+               ### 📝 検知情報
+               ```
+               エラータイプ: ${{ github.event.client_payload.error_type }}
+               エラーメッセージ: ${{ github.event.client_payload.error_message }}
+               発生時刻: ${{ github.event.client_payload.timestamp }}
+               コンテキスト: ${{ github.event.client_payload.context }}
+               ログソース: ${{ github.event.client_payload.log_group }}
+               ```
+
+               <details>
+               <summary>スタックトレース</summary>
+
+               ```
+               ${{ github.event.client_payload.error_stack }}
+               ```
+               </details>
 
             ## 重要な注意点
 
-            - 同じ根本原因のエラーで複数のIssueを作らない
-            - Issue名は人間が理解しやすい日本語で
-            - コードの該当箇所は `file_path:line_number` 形式で明記
+            - **gh CLIコマンドは自動承認されます** - 積極的に使用して重複チェックを行ってください
+            - 同じ根本原因のエラーで複数のIssueを作らないでください
+            - Issue名は人間が理解しやすい日本語で、発生場所を含めてください
+            - コードの該当箇所は必ず `file_path:line_number` 形式で明記してください
+            - エラーの根本原因をコードから特定し、具体的な修正案を提示してください
+            - 既存Issueに追記する場合は `gh issue comment <番号> --body "内容"` を使用してください
