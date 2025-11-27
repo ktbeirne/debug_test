@@ -27,8 +27,8 @@
     "@aws-sdk/client-cloudwatch-logs": "^3.670.0",
     "@aws-sdk/client-iam": "^3.670.0",
     "@aws-sdk/client-lambda": "^3.670.0",
-    "@octokit/rest": "^21.0.2",
-    "dotenv": "^16.4.5"
+    "@octokit/rest": "^21.1.1",
+    "dotenv": "^16.6.1"
   },
   "devDependencies": {
     "@types/adm-zip": "^0.5.7",

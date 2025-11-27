@@ -1,0 +1,9 @@
+{
+    "name": "llm-ops-trigger-workflow",
+    "version": "1.0.0",
+    "description": "CloudWatch Logs trigger Lambda function",
+    "main": "index.js",
+    "dependencies": {
+        "@octokit/rest": "^20.0.2"
+    }
+}

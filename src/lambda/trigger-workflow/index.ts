@@ -51,7 +51,13 @@ export const handler = async (
 
         for (const logEvent of logData.logEvents) {
             try {
-                const parsedMessage = JSON.parse(logEvent.message);
+                // CloudWatch Logsのメッセージは以下の形式：
+                // "2025-11-27T02:50:09.828Z\t728e2aaa-0695-47d4-961c-e00c6c5ea106\tERROR\t{...JSON...}"
+                // タブで分割して最後の部分（JSON）を取得
+                const messageParts = logEvent.message.split('\t');
+                const jsonPart = messageParts[messageParts.length - 1];
+
+                const parsedMessage = JSON.parse(jsonPart);
 
                 // ERRORレベルのログのみ処理
                 if (parsedMessage.severity === 'ERROR' && parsedMessage.error) {
@@ -89,15 +95,20 @@ export const handler = async (
             };
 
             console.log('Triggering GitHub Actions with payload:', JSON.stringify(payload));
+            console.log(`Target repository: ${owner}/${repo}`);
 
-            await octokit.repos.createDispatchEvent({
+            const response = await octokit.repos.createDispatchEvent({
                 owner,
                 repo,
                 event_type: 'error-detected',
                 client_payload: payload,
             });
 
-            console.log('GitHub Actions triggered successfully');
+            console.log('GitHub API Response:', JSON.stringify({
+                status: response.status,
+                headers: response.headers,
+            }));
+            console.log('GitHub Actions triggered successfully (status 204 = success)');
         }
 
     } catch (error) {
