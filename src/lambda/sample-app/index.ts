@@ -238,7 +238,7 @@ const getArticleById = async (articleId: number): Promise<APIGatewayProxyResult>
 };
 
 // 記事作成
-const createArticle = (event: APIGatewayProxyEvent): APIGatewayProxyResult => {
+const createArticle = async (event: APIGatewayProxyEvent): Promise<APIGatewayProxyResult> => {
     const body = JSON.parse(event.body || '{}');
     const { title, content, authorId, tags } = body;
 
@@ -250,6 +250,34 @@ const createArticle = (event: APIGatewayProxyEvent): APIGatewayProxyResult => {
                 !content && 'content',
                 !authorId && 'authorId',
             ].filter(Boolean),
+        });
+    }
+
+    // 外部API呼び出し: ユーザーの存在確認
+    const userResponse = await fetch(`${USER_API_URL}/${authorId}`);
+    const responseData = await userResponse.json() as any;
+
+    // エラーハンドリング
+    if (!responseData.success) {
+        const errorCode = responseData.code;
+        const criticalErrors = ['E1001', 'E1003'];
+
+        if (criticalErrors.includes(errorCode)) {
+            throw new CriticalUserError(
+                'EXTERNAL_SERVICE_ERROR',
+                'External service error',
+                {
+                    externalErrorCode: errorCode,
+                    authorId,
+                    operation: 'createArticle'
+                }
+            );
+        }
+
+        // その他のエラーはフォールバック（警告のみ）
+        console.warn(`User API returned error during article creation: ${errorCode}`, {
+            authorId,
+            errorCode
         });
     }
 
@@ -356,7 +384,7 @@ export const handler = async (
         }
 
         if (path === '/articles' && method === 'POST') {
-            return createArticle(event);
+            return await createArticle(event);
         }
 
         const articleMatch = path.match(/^\/articles\/(\d+)$/);
@@ -400,10 +428,17 @@ export const handler = async (
 
     } catch (error) {
         // エラーログを出力（スタックトレース付き）
-        logError(error as Error, `${method} ${path}`, {
+        const details: any = {
             body: event.body,
             queryStringParameters: event.queryStringParameters,
-        });
+        };
+
+        // CriticalUserError の場合は context も含める
+        if (error instanceof CriticalUserError && error.context) {
+            Object.assign(details, error.context);
+        }
+
+        logError(error as Error, `${method} ${path}`, details);
 
         // エラーレスポンスを返す
         return {
