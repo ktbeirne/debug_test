@@ -35,40 +35,6 @@ jobs:
           echo "log_group=${{ github.event.client_payload.log_group }}" >> $GITHUB_OUTPUT
           echo "context=${{ github.event.client_payload.context }}" >> $GITHUB_OUTPUT
 
-      - name: Create error analysis prompt
-        id: create-prompt
-        run: |
-          cat << 'EOF' > error_analysis_prompt.md
-          # エラー解析依頼
-
-          以下のエラーが本番環境で発生しました。このリポジトリのコードを解析して、根本原因と修正方法を提案してください。
-
-          ## エラー情報
-
-          - **エラータイプ**: ${{ github.event.client_payload.error_type }}
-          - **エラーメッセージ**: ${{ github.event.client_payload.error_message }}
-          - **発生時刻**: ${{ github.event.client_payload.timestamp }}
-          - **コンテキスト**: ${{ github.event.client_payload.context }}
-          - **ログソース**: ${{ github.event.client_payload.log_group }}
-
-          ## スタックトレース
-
-          ```
-          ${{ github.event.client_payload.error_stack }}
-          ```
-
-          ## 解析してほしい内容
-
-          1. **根本原因**: このエラーが発生した根本的な原因は何か？
-          2. **影響範囲**: このエラーはどの機能に影響を与えるか？
-          3. **修正方法**: どのように修正すべきか？具体的なコード変更を提案してください
-          4. **再発防止**: 同様のエラーを防ぐために、どのような対策が必要か？
-
-          リポジトリのコードを確認して、詳細な解析レポートを作成してください。
-          EOF
-
-          cat error_analysis_prompt.md
-
       - name: Create Issue with error details
         uses: actions/github-script@v7
         with:
@@ -81,40 +47,38 @@ jobs:
             const errorContext = `${{ github.event.client_payload.context }}`;
             const logGroup = `${{ github.event.client_payload.log_group }}`;
 
-            const issueBody = `
-## エラー検知通知
+            const issueBody = `## エラー検知通知
 
-本番環境でエラーが検知されました。Claude Codeによる自動解析を実施します。
+            本番環境でエラーが検知されました。Claude Codeによる自動解析を実施します。
 
-### エラー情報
+            ### エラー情報
 
-| 項目 | 内容 |
-|------|------|
-| **エラータイプ** | \`${errorType}\` |
-| **エラーメッセージ** | ${errorMessage} |
-| **発生時刻** | ${timestamp} |
-| **コンテキスト** | ${errorContext} |
-| **ログソース** | ${logGroup} |
+            | 項目 | 内容 |
+            |------|------|
+            | **エラータイプ** | \`${errorType}\` |
+            | **エラーメッセージ** | ${errorMessage} |
+            | **発生時刻** | ${timestamp} |
+            | **コンテキスト** | ${errorContext} |
+            | **ログソース** | ${logGroup} |
 
-### スタックトレース
+            ### スタックトレース
 
-\`\`\`
-${errorStack}
-\`\`\`
+            \`\`\`
+            ${errorStack}
+            \`\`\`
 
----
+            ---
 
-### 解析依頼
+            ### 解析依頼
 
-@claude-code 上記のエラーについて、以下の観点で解析してください:
+            @claude-code 上記のエラーについて、以下の観点で解析してください:
 
-1. **根本原因**: このエラーが発生した根本的な原因
-2. **影響範囲**: このエラーが影響する機能や範囲
-3. **修正方法**: 具体的なコード変更の提案
-4. **再発防止**: 同様のエラーを防ぐための対策
+            1. **根本原因**: このエラーが発生した根本的な原因
+            2. **影響範囲**: このエラーが影響する機能や範囲
+            3. **修正方法**: 具体的なコード変更の提案
+            4. **再発防止**: 同様のエラーを防ぐための対策
 
-リポジトリのコードを確認して、詳細な解析レポートをお願いします。
-            `;
+            リポジトリのコードを確認して、詳細な解析レポートをお願いします。`;
 
             const issue = await github.rest.issues.create({
               owner: context.repo.owner,
