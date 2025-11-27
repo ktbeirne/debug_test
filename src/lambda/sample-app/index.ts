@@ -183,7 +183,6 @@ const getArticleById = async (articleId: number): Promise<APIGatewayProxyResult>
         const errorCode = responseData.code;
 
         // 特定のエラーコードは Critical として扱う
-        // E1001: ユーザー不在、E1003: ユーザー削除済み
         const criticalErrors = ['E1001', 'E1003'];
 
         if (criticalErrors.includes(errorCode)) {
