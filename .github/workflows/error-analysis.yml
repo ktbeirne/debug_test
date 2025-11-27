@@ -67,6 +67,10 @@ jobs:
 
             2. **コード解析**
                - リポジトリのコード（特に `src/lambda/sample-app/index.ts`）を確認
+               - **`docs/` ディレクトリ内のドキュメントも参照してください**:
+                 - `docs/architecture.md`: データモデル、API仕様、エラーハンドリング
+                 - `docs/error-codes.md`: エラーコード定義と対処方法
+                 - `docs/api-specs/`: 外部API仕様（OpenAPI形式）
                - スタックトレースからエラーの根本原因を特定
                - 問題のあるコード箇所を特定（ファイル名:行番号）
 
