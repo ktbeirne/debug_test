@@ -79,7 +79,7 @@ jobs:
             | **エラータイプ** | \`${errorType}\` |
             | **エラーメッセージ** | ${errorMessage} |
             | **発生時刻** | ${timestamp} |
-            | **コンテキスト** | ${context} |
+            | **コンテキスト** | ${errorContext} |
             | **ログソース** | ${logGroup} |
 
             ### スタックトレース
