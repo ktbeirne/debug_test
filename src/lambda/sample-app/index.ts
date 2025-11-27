@@ -81,16 +81,6 @@ const articles: Article[] = [
         updatedAt: '2025-11-15T09:00:00Z',
         deletedAt: '2025-11-22T16:00:00Z',
     },
-    {
-        id: 4,
-        title: 'Node.js 22の新機能',
-        content: 'Node.js 22で追加された新しい機能について解説します...',
-        authorId: 999,
-        tags: ['nodejs', 'javascript'],
-        isDeleted: false,
-        createdAt: '2025-11-23T11:00:00Z',
-        updatedAt: '2025-11-23T11:00:00Z',
-    },
 ];
 
 const comments: Comment[] = [
@@ -186,26 +176,31 @@ const getArticleById = async (articleId: number): Promise<APIGatewayProxyResult>
 
     // 外部API呼び出し: ユーザー情報を取得
     const userResponse = await fetch(`${USER_API_URL}/${article.authorId}`);
-    const responseData = await userResponse.json();
+    const responseData = await userResponse.json() as any;
 
     // エラーハンドリング: success フィールドをチェック
     if (!responseData.success) {
         const errorCode = responseData.code;
 
-        // E1001 は Critical エラーとして扱う
-        if (errorCode === 'E1001') {
+        // 特定のエラーコードは Critical として扱う
+        // E1001: ユーザー不在、E1003: ユーザー削除済み
+        const criticalErrors = ['E1001', 'E1003'];
+
+        if (criticalErrors.includes(errorCode)) {
+            // エラーメッセージは曖昧に
             throw new CriticalUserError(
-                errorCode,
-                `Critical: User ${article.authorId} not found`,
+                'EXTERNAL_SERVICE_ERROR',
+                'External service error',
                 {
+                    externalErrorCode: errorCode,
                     articleId,
                     authorId: article.authorId,
-                    apiResponse: responseData
+                    timestamp: responseData.timestamp
                 }
             );
         }
 
-        // その他のエラーはフォールバック処理
+        // E1002 (アカウント停止), E2001 (レート制限) などはフォールバック処理
         console.warn(`User API returned error: ${errorCode}`, {
             articleId,
             authorId: article.authorId,
