@@ -14,10 +14,14 @@ on:
         required: false
         default: 'TestError'
 
+permissions:
+  issues: write
+  contents: read
+
 jobs:
   analyze-error:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,30 +41,30 @@ jobs:
           cat << 'EOF' > error_analysis_prompt.md
           # エラー解析依頼
 
-          以下�Eエラーが本番環墁E��発生しました。このリポジトリのコードを解析して、根本原因と修正方法を提案してください、E
+          以下のエラーが本番環境で発生しました。このリポジトリのコードを解析して、根本原因と修正方法を提案してください。
 
-          ## エラー惁E��
+          ## エラー情報
 
-          - **エラータイチE*: ${{ github.event.client_payload.error_type }}
-          - **エラーメチE��ージ**: ${{ github.event.client_payload.error_message }}
+          - **エラータイプ**: ${{ github.event.client_payload.error_type }}
+          - **エラーメッセージ**: ${{ github.event.client_payload.error_message }}
           - **発生時刻**: ${{ github.event.client_payload.timestamp }}
-          - **コンチE��スチE*: ${{ github.event.client_payload.context }}
+          - **コンテキスト**: ${{ github.event.client_payload.context }}
           - **ログソース**: ${{ github.event.client_payload.log_group }}
 
-          ## スタチE��トレース
+          ## スタックトレース
 
           ```
           ${{ github.event.client_payload.error_stack }}
           ```
 
-          ## 解析してほしい冁E��
+          ## 解析してほしい内容
 
-          1. **根本原因**: こ�Eエラーが発生した根本皁E��原因は何か�E�E
-          2. **影響篁E��**: こ�Eエラーはどの機�Eに影響を与えるか�E�E
-          3. **修正方況E*: どのように修正すべきか�E��E体的なコード変更を提案してください
-          4. **再発防止**: 同様�Eエラーを防ぐために、どのような対策が忁E��か�E�E
+          1. **根本原因**: このエラーが発生した根本的な原因は何か？
+          2. **影響範囲**: このエラーはどの機能に影響を与えるか？
+          3. **修正方法**: どのように修正すべきか？具体的なコード変更を提案してください
+          4. **再発防止**: 同様のエラーを防ぐために、どのような対策が必要か？
 
-          リポジトリのコードを確認して、詳細な解析レポ�Eトを作�Eしてください、E
+          リポジトリのコードを確認して、詳細な解析レポートを作成してください。
           EOF
 
           cat error_analysis_prompt.md
@@ -78,38 +82,38 @@ jobs:
             const logGroup = `${{ github.event.client_payload.log_group }}`;
 
             const issueBody = `
-            ## 🚨 エラー検知通知
+## エラー検知通知
 
-            本番環墁E��エラーが検知されました、Elaude Codeによる自動解析を実施します、E
+本番環境でエラーが検知されました。Claude Codeによる自動解析を実施します。
 
-            ### エラー惁E��
+### エラー情報
 
-            | 頁E�� | 冁E�� |
-            |------|------|
-            | **エラータイチE* | \`${errorType}\` |
-            | **エラーメチE��ージ** | ${errorMessage} |
-            | **発生時刻** | ${timestamp} |
-            | **コンチE��スチE* | ${errorContext} |
-            | **ログソース** | ${logGroup} |
+| 項目 | 内容 |
+|------|------|
+| **エラータイプ** | \`${errorType}\` |
+| **エラーメッセージ** | ${errorMessage} |
+| **発生時刻** | ${timestamp} |
+| **コンテキスト** | ${errorContext} |
+| **ログソース** | ${logGroup} |
 
-            ### スタチE��トレース
+### スタックトレース
 
-            \`\`\`
-            ${errorStack}
-            \`\`\`
+\`\`\`
+${errorStack}
+\`\`\`
 
-            ---
+---
 
-            ### 📋 解析依頼
+### 解析依頼
 
-            @claude-code 上記�EエラーにつぁE��、以下�E観点で解析してください:
+@claude-code 上記のエラーについて、以下の観点で解析してください:
 
-            1. **根本原因**: こ�Eエラーが発生した根本皁E��原因
-            2. **影響篁E��**: こ�Eエラーが影響する機�EめE��E��
-            3. **修正方況E*: 具体的なコード変更の提桁E
-            4. **再発防止**: 同様�Eエラーを防ぐため�E対筁E
+1. **根本原因**: このエラーが発生した根本的な原因
+2. **影響範囲**: このエラーが影響する機能や範囲
+3. **修正方法**: 具体的なコード変更の提案
+4. **再発防止**: 同様のエラーを防ぐための対策
 
-            リポジトリのコードを確認して、詳細な解析レポ�Eトをお願いします、E
+リポジトリのコードを確認して、詳細な解析レポートをお願いします。
             `;
 
             const issue = await github.rest.issues.create({
