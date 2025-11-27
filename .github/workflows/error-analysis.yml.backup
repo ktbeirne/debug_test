@@ -1,0 +1,95 @@
+name: Error Analysis with Claude Code
+
+on:
+  repository_dispatch:
+    types: [error-detected]
+  workflow_dispatch:
+    inputs:
+      error_message:
+        description: 'Error message for testing'
+        required: false
+        default: 'Manual test error'
+      error_type:
+        description: 'Error type'
+        required: false
+        default: 'TestError'
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  analyze-error:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Extract error information
+        id: error-info
+        run: |
+          echo "error_message=${{ github.event.client_payload.error_message }}" >> $GITHUB_OUTPUT
+          echo "error_type=${{ github.event.client_payload.error_type }}" >> $GITHUB_OUTPUT
+          echo "timestamp=${{ github.event.client_payload.timestamp }}" >> $GITHUB_OUTPUT
+          echo "log_group=${{ github.event.client_payload.log_group }}" >> $GITHUB_OUTPUT
+          echo "context=${{ github.event.client_payload.context }}" >> $GITHUB_OUTPUT
+
+      - name: Create Issue with error details
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.PAT_TOKEN }}
+          script: |
+            const errorStack = `${{ github.event.client_payload.error_stack }}`;
+            const errorMessage = `${{ github.event.client_payload.error_message }}`;
+            const errorType = `${{ github.event.client_payload.error_type }}`;
+            const timestamp = `${{ github.event.client_payload.timestamp }}`;
+            const errorContext = `${{ github.event.client_payload.context }}`;
+            const logGroup = `${{ github.event.client_payload.log_group }}`;
+
+            const issueBody = `## エラー検知通知
+
+            本番環境でエラーが検知されました。
+
+            ### エラー情報
+
+            | 項目 | 内容 |
+            |------|------|
+            | **エラータイプ** | \`${errorType}\` |
+            | **エラーメッセージ** | ${errorMessage} |
+            | **発生時刻** | ${timestamp} |
+            | **コンテキスト** | ${errorContext} |
+            | **ログソース** | ${logGroup} |
+
+            ### スタックトレース
+
+            \`\`\`
+            ${errorStack}
+            \`\`\``;
+
+            const issue = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[自動検知] ${errorType}: ${errorMessage}`,
+              body: issueBody,
+              labels: ['bug', 'auto-detected', 'needs-analysis']
+            });
+
+            console.log(`Issue created: ${issue.data.html_url}`);
+
+            // Claude for GitHubを呼び出すためのコメントを追加
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.data.number,
+              body: `@claude 上記のエラーについて、以下の観点で解析してください:
+
+            1. **根本原因**: このエラーが発生した根本的な原因
+            2. **影響範囲**: このエラーが影響する機能や範囲
+            3. **修正方法**: 具体的なコード変更の提案
+            4. **再発防止**: 同様のエラーを防ぐための対策
+
+            リポジトリのコードを確認して、詳細な解析レポートをお願いします。`
+            });
+
+            console.log('Claude analysis comment added');
