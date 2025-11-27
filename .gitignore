@@ -26,3 +26,6 @@ npm-debug.log*
 
 # AWS
 .aws-sam/
+
+# Stub API (not included in repository to prevent leaking)
+src/lambda/stub-api/

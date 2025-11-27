@@ -1,0 +1,301 @@
+openapi: 3.0.0
+info:
+  title: User API
+  version: 1.0.0
+  description: |
+    ユーザー情報を管理する外部API
+
+    ## 重要な仕様
+    - **HTTPステータスコードは常に200を返します**
+    - エラーの有無は `success` フィールドで判定してください
+    - エラーの詳細は `code` フィールドのエラーコードで判断してください
+
+servers:
+  - url: https://api.example.com/v1
+    description: Production server
+
+paths:
+  /users/{id}:
+    get:
+      summary: ユーザー情報取得
+      description: 指定されたIDのユーザー情報を取得します
+      operationId: getUser
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: ユーザーID
+      responses:
+        '200':
+          description: レスポンス（成功・エラーの両方）
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                success:
+                  summary: 成功レスポンス
+                  value:
+                    success: true
+                    data:
+                      id: "10"
+                      name: "User 10"
+                      email: "user10@example.com"
+                      status: "active"
+                      createdAt: "2024-01-01T00:00:00Z"
+
+                error_E1001:
+                  summary: エラー E1001
+                  value:
+                    success: false
+                    code: "E1001"
+                    message: "Operation failed"
+                    timestamp: "2025-11-27T08:00:00Z"
+                  description: |
+                    ## エラーコード: E1001
+                    **ユーザーが存在しない**
+
+                    ### 説明
+                    指定されたユーザーIDがシステムに存在しません。
+
+                    ### 発生条件
+                    - ユーザーIDが不正（存在しない）
+                    - ユーザーが物理削除されている
+                    - データベースの整合性エラー
+
+                    ### 対処方法
+                    1. **事前チェック**: ユーザーIDの存在確認を行う
+                    2. **ログ記録**: エラーログを記録してモニタリング
+                    3. **アラート**: データ整合性の問題として運用チームに通知
+                    4. **フォールバック**: デフォルト値を使用するか、エラー情報を上位層に伝播
+
+                    ### 根本対策
+                    - ユーザーIDの存在チェックロジックを追加
+                    - 外部キー制約の見直し
+                    - ソフトデリート（論理削除）への移行
+
+                error_E1002:
+                  summary: エラー E1002
+                  value:
+                    success: false
+                    code: "E1002"
+                    message: "Access restricted"
+                    timestamp: "2025-11-27T08:00:00Z"
+                  description: |
+                    ## エラーコード: E1002
+                    **ユーザーアカウント停止中**
+
+                    ### 説明
+                    ユーザーアカウントが管理者によって停止されています。
+
+                    ### 発生条件
+                    - 利用規約違反によるアカウント停止
+                    - セキュリティ上の理由による一時停止
+                    - 支払い遅延によるサービス停止
+
+                    ### 対処方法
+                    1. **フォールバック**: デフォルト値を使用して処理を継続
+                    2. **ユーザー通知**: アカウント停止の旨を表示
+                    3. **サポート誘導**: サポートへの問い合わせリンクを提供
+
+                    ### 実装例
+                    ```typescript
+                    if (!response.success && response.code === 'E1002') {
+                      // 通常のエラーハンドリング（例外は throw しない）
+                      return {
+                        id: userId,
+                        name: 'Suspended User',
+                        email: null,
+                        status: 'suspended'
+                      };
+                    }
+                    ```
+
+                error_E1003:
+                  summary: エラー E1003
+                  value:
+                    success: false
+                    code: "E1003"
+                    message: "Resource unavailable"
+                    timestamp: "2025-11-27T08:00:00Z"
+                  description: |
+                    ## エラーコード: E1003
+                    **ユーザーアカウント削除済み**
+
+                    ### 説明
+                    ユーザーがアカウント削除を実行済みです。
+
+                    ### 発生条件
+                    - ユーザー自身によるアカウント削除
+                    - GDPR対応による個人情報削除
+                    - 長期未使用による自動削除
+
+                    ### 対処方法
+                    1. **キャッシュクリア**: ローカルキャッシュを削除
+                    2. **関連データ更新**: 削除ユーザーに関連するデータを更新
+                    3. **ユーザー表示**: 「削除されたユーザー」と表示
+
+                    ### 実装例
+                    ```typescript
+                    if (!response.success && response.code === 'E1003') {
+                      await clearUserCache(userId);
+                      return {
+                        id: userId,
+                        name: 'Deleted User',
+                        email: null,
+                        status: 'deleted'
+                      };
+                    }
+                    ```
+
+                error_E2001:
+                  summary: エラー E2001
+                  value:
+                    success: false
+                    code: "E2001"
+                    message: "Service temporarily unavailable"
+                    timestamp: "2025-11-27T08:00:00Z"
+                    retryAfter: 60
+                  description: |
+                    ## エラーコード: E2001
+                    **API呼び出し制限超過**
+
+                    ### 説明
+                    短時間に大量のリクエストが発生し、レート制限を超過しました。
+
+                    ### 発生条件
+                    - 同一IPアドレスからの大量リクエスト
+                    - リクエスト頻度が設定値（100req/min等）を超過
+
+                    ### 対処方法
+                    1. **リトライ**: `retryAfter` 秒後に再試行
+                    2. **指数バックオフ**: リトライ間隔を徐々に延ばす
+                    3. **バッチ処理**: 複数リクエストをまとめる
+                    4. **キャッシュ**: 頻繁にアクセスするデータをキャッシュ
+
+                    ### 実装例
+                    ```typescript
+                    if (!response.success && response.code === 'E2001') {
+                      const retryAfter = response.retryAfter || 60;
+                      await sleep(retryAfter * 1000);
+                      return retry(userId);
+                    }
+                    ```
+
+                error_E3001:
+                  summary: エラー E3001
+                  value:
+                    success: false
+                    code: "E3001"
+                    message: "Processing error"
+                    timestamp: "2025-11-27T08:00:00Z"
+                  description: |
+                    ## エラーコード: E3001
+                    **内部処理エラー**
+
+                    ### 説明
+                    APIサーバー側で予期しないエラーが発生しました。
+
+                    ### 発生条件
+                    - データベース接続エラー
+                    - タイムアウト
+                    - 依存サービスの障害
+
+                    ### 対処方法
+                    1. **リトライ**: 最大3回まで再試行
+                    2. **フォールバック**: キャッシュや代替データソースを使用
+                    3. **エラーログ**: 詳細なログを記録
+                    4. **アラート**: 運用チームに通知
+
+                    ### 実装例
+                    ```typescript
+                    if (!response.success && response.code === 'E3001') {
+                      logger.error('User API internal error', { userId, response });
+
+                      // フォールバック: キャッシュから取得を試みる
+                      const cached = await getUserFromCache(userId);
+                      if (cached) return cached;
+
+                      // キャッシュもない場合はデフォルト値
+                      return {
+                        id: userId,
+                        name: 'Unknown User',
+                        email: null
+                      };
+                    }
+                    ```
+
+components:
+  schemas:
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [true]
+        data:
+          $ref: '#/components/schemas/User'
+      required:
+        - success
+        - data
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          enum: [false]
+        code:
+          type: string
+          description: |
+            エラーコード一覧:
+            - `E1001`: ユーザーが存在しない
+            - `E1002`: ユーザーアカウント停止中
+            - `E1003`: ユーザーアカウント削除済み
+            - `E2001`: API呼び出し制限超過
+            - `E3001`: 内部処理エラー
+        message:
+          type: string
+          description: エラーメッセージ（人間が読める形式）
+        timestamp:
+          type: string
+          format: date-time
+          description: エラー発生時刻
+        retryAfter:
+          type: integer
+          description: リトライまでの待機秒数（E2001の場合のみ）
+      required:
+        - success
+        - code
+        - message
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ユーザーID
+        name:
+          type: string
+          description: ユーザー名
+        email:
+          type: string
+          format: email
+          description: メールアドレス
+        status:
+          type: string
+          enum: [active, inactive, suspended, deleted]
+          description: アカウントステータス
+        createdAt:
+          type: string
+          format: date-time
+          description: アカウント作成日時
+      required:
+        - id
+        - name
+        - email
+        - status

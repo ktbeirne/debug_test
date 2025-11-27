@@ -4,6 +4,17 @@ import { APIGatewayProxyEvent, APIGatewayProxyResult, Context } from 'aws-lambda
  * ブログ記事管理API - サンプルアプリケーション
  */
 
+// 環境変数
+const USER_API_URL = process.env.USER_API_URL || 'https://example.com/users';
+
+// カスタムエラークラス
+class CriticalUserError extends Error {
+    constructor(public errorCode: string, message: string, public context?: any) {
+        super(message);
+        this.name = 'CriticalUserError';
+    }
+}
+
 // データモデル
 interface Article {
     id: number;
@@ -164,7 +175,7 @@ const getArticles = (event: APIGatewayProxyEvent): APIGatewayProxyResult => {
 };
 
 // 記事詳細取得
-const getArticleById = (articleId: number): APIGatewayProxyResult => {
+const getArticleById = async (articleId: number): Promise<APIGatewayProxyResult> => {
     const article = articles.find(a => a.id === articleId);
 
     if (!article) {
@@ -173,14 +184,58 @@ const getArticleById = (articleId: number): APIGatewayProxyResult => {
 
     const tagNames = article.tags!.map(t => t.toUpperCase());
 
-    const author = users[article.authorId];
+    // 外部API呼び出し: ユーザー情報を取得
+    const userResponse = await fetch(`${USER_API_URL}/${article.authorId}`);
+    const responseData = await userResponse.json();
+
+    // エラーハンドリング: success フィールドをチェック
+    if (!responseData.success) {
+        const errorCode = responseData.code;
+
+        // E1001 は Critical エラーとして扱う
+        if (errorCode === 'E1001') {
+            throw new CriticalUserError(
+                errorCode,
+                `Critical: User ${article.authorId} not found`,
+                {
+                    articleId,
+                    authorId: article.authorId,
+                    apiResponse: responseData
+                }
+            );
+        }
+
+        // その他のエラーはフォールバック処理
+        console.warn(`User API returned error: ${errorCode}`, {
+            articleId,
+            authorId: article.authorId,
+            errorCode
+        });
+
+        // デフォルト値で処理を継続
+        return createSuccessResponse({
+            id: article.id,
+            title: article.title,
+            content: article.content,
+            authorId: article.authorId,
+            authorName: 'Unknown User',
+            authorEmail: null,
+            tags: tagNames,
+            createdAt: article.createdAt,
+            updatedAt: article.updatedAt,
+        });
+    }
+
+    // 正常レスポンス
+    const userData = responseData.data;
 
     return createSuccessResponse({
         id: article.id,
         title: article.title,
         content: article.content,
         authorId: article.authorId,
-        authorName: author?.name || 'Unknown',
+        authorName: userData.name,
+        authorEmail: userData.email,
         tags: tagNames,
         createdAt: article.createdAt,
         updatedAt: article.updatedAt,
@@ -312,7 +367,7 @@ export const handler = async (
         const articleMatch = path.match(/^\/articles\/(\d+)$/);
         if (articleMatch && method === 'GET') {
             const articleId = parseInt(articleMatch[1]);
-            return getArticleById(articleId);
+            return await getArticleById(articleId);
         }
 
         if (articleMatch && method === 'PUT') {
